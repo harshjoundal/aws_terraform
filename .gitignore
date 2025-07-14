@@ -1,0 +1,14 @@
+# Ignore local Terraform state
+*.tfstate
+*.tfstate.*
+
+# Ignore Terraform plan files
+*.tfplan
+
+# Ignore crash logs
+crash.log
+
+# Ignore Terraform working directories
+**/.terraform/*
+# DO NOT ignore *.tfvars
+# *.tfvars <-- Removed so they get committed
