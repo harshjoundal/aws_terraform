@@ -22,16 +22,20 @@ provider "aws" {
   region = "us-east-1"
 }
 
-module "vpc" {
-  source = "./modules/vpc"
-
-  vpc_cidr = var.vpc_cidr
-  public_subnet_cidrs = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
-  cluster_name = var.cluster_name
-  availability_zones = var.availability_zones
-
+module "jenkins_ec2" {
+  source = "./modules/ec2_jenkins"
 }
+
+# module "vpc" {
+#   source = "./modules/vpc"
+
+#   vpc_cidr = var.vpc_cidr
+#   public_subnet_cidrs = var.public_subnet_cidrs
+#   private_subnet_cidrs = var.private_subnet_cidrs
+#   cluster_name = var.cluster_name
+#   availability_zones = var.availability_zones
+
+# }
 
 
 # module "eks" {
