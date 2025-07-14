@@ -1,6 +1,7 @@
 data "aws_iam_policy_document" "ec2_trust" {
     statement {
-      actions = ["sts.assumeRole"]
+      effect = "Allow"
+      actions = ["sts:AssumeRole"] 
       principals {
         type        = "Service"
         identifiers = ["ec2.amazonaws.com"]
@@ -18,14 +19,14 @@ resource "aws_iam_policy" "jenkins_policy" {
     description = "Policy for Jenkins EC2 instance"
     policy = jsonencode({
         Version = "2012-10-17"
-        statement = [
+        Statement = [
             {
                 Effect = "Allow"
                 Action = [
                     "ec2:*",
-                    "s3:*",,
+                    "s3:*",
                     "eks:*",
-                    "iam:*",,
+                    "iam:*",
                     "dynamodb:*"
                 ],
                 Resource = "*"
@@ -42,7 +43,7 @@ resource "aws_iam_role_policy_attachment" "attach" {
 resource "aws_security_group" "jenkins_sg" {
     name = "jenkins_sg"
     description = "Security group for Jenkins EC2 instance"
-    ingress = {
+    ingress {
         from_port   = 22
         to_port     = 22
         protocol    = "tcp"
@@ -52,13 +53,13 @@ resource "aws_security_group" "jenkins_sg" {
         from_port   = 8080
         to_port     = 8080
         protocol    = "tcp"
-        cidr_blocks = ["YOUR_IP/32"]
+        cidr_blocks = ["0.0.0.0/0"]
     }
-    egress = {
+    egress {
         from_port   = 0
         to_port     = 0
         protocol    = "-1"
-        cidr_blocks = ["0.0.0/0"]
+        cidr_blocks = ["0.0.0.0/0"]
     }
 }
 
@@ -69,7 +70,7 @@ resource "aws_instance" "jenkins" {
     security_groups = [aws_security_group.jenkins_sg.name]
     iam_instance_profile = aws_iam_instance_profile.jenkins_profile.name
 
-    user_data = << EOF
+    user_data = <<EOF
         #!/bin/bash
         # Update package index
         sudo apt update -y
@@ -79,13 +80,10 @@ resource "aws_instance" "jenkins" {
 
         # Add Jenkins repo key
         sudo mkdir -p /etc/apt/keyrings
-        sudo wget -O /etc/apt/keyrings/jenkins-keyring.asc \
-        https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        sudo wget -O /etc/apt/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
 
         # Add Jenkins repository
-        echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] \
-        https://pkg.jenkins.io/debian-stable binary/" | sudo tee \
-        /etc/apt/sources.list.d/jenkins.list > /dev/null
+        echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
         # Update again to pick up Jenkins repo
         sudo apt update -y
@@ -102,3 +100,4 @@ resource "aws_instance" "jenkins" {
 resource "aws_iam_instance_profile" "jenkins_profile" {
     name = "jenkins_instance_profile"
     role = aws_iam_role.jenkins_role.name
+}
