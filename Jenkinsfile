@@ -1,6 +1,19 @@
 pipeline {
    agent any // Uses the Jenkins agent directly
 
+  parameters {
+    booleanParam(
+      name: 'APPLY',
+      defaultValue: true,
+      description: 'Check to apply Terraform changes, uncheck to destroy infrastructure'
+    )
+    booleanParam(
+      name: 'DESTROY',
+      defaultValue: false,
+      description: 'terrafoprm destroy'
+    )
+  }
+
   environment {
     AWS_REGION = 'us-east-1'
     GITHUB_CREDENTIALS_ID = 'git-pat'
@@ -37,19 +50,39 @@ pipeline {
       }
     }
 
-    stage('Terraform Apply') {
+    stage('Terraform Apply or Destroy') {
       steps {
-        sh 'echo terraform apply -auto-approve'
+        script {
+          if (params.APPLY) {
+            echo 'Applying Terraform configuration...'
+            sh 'terraform apply -auto-approve'
+          } else {
+            echo 'Destroying Terraform infrastructure...'
+            sh 'terraform destroy -auto-approve'
+          }
+        }
       }
     }
   }
 
   post {
     always {
-      echo 'Terraform deployment completed successfully!'
+      script {
+        if (params.APPLY) {
+          echo 'Terraform apply operation completed!'
+        } else {
+          echo 'Terraform destroy operation completed!'
+        }
+      }
     }
     success {
-      echo 'Terraform deployment completed successfully!'
+      script {
+        if (params.APPLY) {
+          echo 'Terraform deployment completed successfully!'
+        } else {
+          echo 'Infrastructure destroyed successfully!'
+        }
+      }
     }
     failure {
       echo 'Pipeline failed! Check logs for details.'
