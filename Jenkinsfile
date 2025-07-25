@@ -1,47 +1,91 @@
-terraform {
+pipeline {
+   agent any // Uses the Jenkins agent directly
 
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+  parameters {
+    booleanParam(
+      name: 'APPLY',
+      defaultValue: true,
+      description: 'Check to apply Terraform changes, uncheck to destroy infrastructure'
+    )
+    booleanParam(
+      name: 'DESTROY',
+      defaultValue: false,
+      description: 'terrafoprm destroy'
+    )
+  }
+
+  environment {
+    AWS_REGION = 'us-east-1'
+    GITHUB_CREDENTIALS_ID = 'git-pat'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'main', credentialsId: "${GITHUB_CREDENTIALS_ID}", url: 'https://github.com/harshjoundal/aws_terraform'
+      }
+    }
+
+    stage('Terraform Init') {
+      steps {
+        script {
+          try {
+            sh 'terraform init'
+          } catch (Exception e) {
+            error "Terraform Init failed: ${e.message}"
+          }
+        }
+      }
+    }
+
+    stage('Terraform Validate') {
+      steps {
+        sh 'terraform validate'
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        sh 'terraform plan -out=tfplan'
+      }
+    }
+
+    stage('Terraform Apply or Destroy') {
+      steps {
+        script {
+          if (params.APPLY) {
+            echo 'Applying Terraform configuration...'
+            sh 'terraform apply -auto-approve'
+          } else {
+            echo 'Destroying Terraform infrastructure...'
+            sh 'terraform destroy -auto-approve'
+          }
+        }
+      }
     }
   }
 
-  backend "s3" {
-    bucket         = "terrafrom-backend-eks-state-bucket-harshj"
-    key            = "terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terrafrom-backend-eks-state-lock"
-    encrypt        = true
+  post {
+    always {
+      script {
+        if (params.APPLY) {
+          echo 'Terraform apply operation completed!'
+        } else {
+          echo 'Terraform destroy operation completed!'
+        }
+      }
+    }
+    success {
+      script {
+        if (params.APPLY) {
+          echo 'Terraform deployment completed successfully!'
+        } else {
+          echo 'Infrastructure destroyed successfully!'
+        }
+      }
+    }
+    failure {
+      echo 'Pipeline failed! Check logs for details.'
+    }
   }
-}
-
-provider "aws" {
-  region = "us-east-1"
-}
-
-module "jenkins_ec2" {
-  source = "./modules/ec2_jenkins"
-}
-
-module "vpc" {
-  source = "./modules/vpc"
-
-  vpc_cidr = var.vpc_cidr
-  public_subnet_cidrs = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
-  cluster_name = var.cluster_name
-  availability_zones = var.availability_zones
-
-}
-
-
-module "eks" {
-  source = "./modules/eks"
-
-  cluster_name    = var.cluster_name
-  cluster_version = var.cluster_version
-  vpc_id          = module.vpc.vpc_id
-  subnet_ids      = module.vpc.private_subnet_ids
-  node_groups     = var.node_groups
 }
